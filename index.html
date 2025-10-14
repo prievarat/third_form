@@ -120,6 +120,9 @@
 </div>
 
 <script>
+let translateLocked=false; // lock to prevent repeat scoring
+let practiceLocked=false; // lock to prevent repeat scoring
+let learnLocked=false; // lock to prevent repeat scoring
 // ==== DATA (embedded JSON) ====
 const VERBS = [
   {"base":"be","past":"was/were","part":"been","translation":"lenni"},
@@ -263,6 +266,7 @@ $('#flash-next').addEventListener('click', nextFlash); $('#flash-skip').addEvent
 // LEARN (+1 only)
 let learnScore=0, learnTimer=null, learnLeft=30, learnCurrent=null, learnMissing='past', learnShowed=false;
 function startLearn(){
+  learnLocked=false;
   if(learnTimer) clearInterval(learnTimer);
   learnCurrent=VERBS[Math.floor(Math.random()*VERBS.length)];
   learnMissing=Math.random()<0.5?'past':'part';
@@ -275,20 +279,23 @@ function startLearn(){
   $('#learn-input').value=''; $('#learn-input').focus();
 }
 function submitLearn(){
+  if(learnLocked) return;
   if(learnShowed) return;
   const val=$('#learn-input').value.trim().toLowerCase();
   if(!val){ $('#learn-feedback').textContent='Írj be választ vagy passzolj!'; return; }
   const correct=learnCurrent[learnMissing].toLowerCase();
-  if(val===correct){ learnScore+=1; $('#learn-score').textContent=learnScore; $('#learn-feedback').textContent='Helyes! +1 pont'; clearInterval(learnTimer); /* manual next: disabled auto-advance */; }
+  if(val===correct){ learnScore+=1;
+  learnLocked=true; $('#learn-score').textContent=learnScore; $('#learn-feedback').textContent='Helyes! +1 pont'; clearInterval(learnTimer); /* manual next: disabled auto-advance */; }
   else { $('#learn-feedback').textContent='Nem jó. Megoldás: '+learnCurrent[learnMissing]; clearInterval(learnTimer); /* manual next: disabled auto-advance */; }
 }
 function showLearnAnswer(){ if(learnShowed) return; learnShowed=true; $('#learn-feedback').textContent='Megoldás: '+learnCurrent[learnMissing]; clearInterval(learnTimer); }
 $('#learn-submit').addEventListener('click', submitLearn); $('#learn-pass').addEventListener('click', startLearn); $('#learn-show').addEventListener('click', showLearnAnswer);
-$('#learn-input').addEventListener('keydown', e=>{ if(e.key==='Enter') submitLearn(); });
+$('#learn-input').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.repeat) submitLearn(); });
 
 // PRACTICE
 let practiceScore=0, practiceTimer=null, practiceLeft=30, practiceCurrent=null, practiceShown=false;
 function startPractice(){
+  practiceLocked=false;
   const DATA=PRACTISE_DATA;
   if(!DATA.length){ $('#practice-task').innerHTML='<div class="empty">Nincs mondat.</div>'; return; }
   if(practiceTimer) clearInterval(practiceTimer);
@@ -301,20 +308,23 @@ function startPractice(){
   practiceTimer=setInterval(()=>{ practiceLeft--; $('#practice-timer').textContent=practiceLeft; if(practiceLeft<=0){ clearInterval(practiceTimer); showPracticeAnswer(); } },1000);
 }
 function submitPractice(){
+  if(practiceLocked) return;
   if(!practiceCurrent) return;
   const val=$('#practice-input').value.trim().toLowerCase();
   if(!val){ $('#practice-feedback').textContent='Írj be választ vagy passzolj!'; return; }
   const correct=(practiceCurrent.participle||'').toLowerCase();
-  if(val===correct){ practiceScore+=10; $('#practice-score').textContent=practiceScore; $('#practice-feedback').textContent='Helyes!'; clearInterval(practiceTimer); /* manual next: disabled auto-advance */; }
+  if(val===correct){ practiceScore+=10;
+  practiceLocked=true; $('#practice-score').textContent=practiceScore; $('#practice-feedback').textContent='Helyes!'; clearInterval(practiceTimer); /* manual next: disabled auto-advance */; }
   else { $('#practice-feedback').textContent='Nem jó. Megoldás: '+(practiceCurrent.participle||''); clearInterval(practiceTimer); /* manual next: disabled auto-advance */; }
 }
 function showPracticeAnswer(){ if(practiceShown) return; practiceShown=true; $('#practice-feedback').textContent='Megoldás: '+(practiceCurrent?.participle||''); clearInterval(practiceTimer); }
 $('#practice-submit').addEventListener('click', submitPractice); $('#practice-pass').addEventListener('click', startPractice); $('#practice-show').addEventListener('click', showPracticeAnswer);
-$('#practice-input').addEventListener('keydown', e=>{ if(e.key==='Enter') submitPractice(); });
+$('#practice-input').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.repeat) submitPractice(); });
 
 // TRANSLATE (no timer; HU-only)
 let translateScore=0, translateCurrent=null, translateShown=false;
 function startTranslate(){
+  translateLocked=false;
   const DATA=TRANSLATION_DATA;
   if(!DATA.length){ $('#translate-task').innerHTML='<div class="empty">Nincs adat a fordításhoz.</div>'; return; }
   translateShown=false;
@@ -326,16 +336,18 @@ function startTranslate(){
 }
 function normalizeEN(s){ return s.replace(/\bI've\b/ig,'I have').replace(/\bHe's\b/ig,'He has').replace(/\bShe's\b/ig,'She has').replace(/\bWe've\b/ig,'We have').replace(/\bThey've\b/ig,'They have').replace(/\bYou've\b/ig,'You have').toLowerCase().replace(/\s+/g,' ').replace(/\s+([?.!])/g,'$1').trim(); }
 function submitTranslate(){
+  if(translateLocked) return;
   if(!translateCurrent) return;
   const val=$('#translate-input').value.trim();
   if(!val){ $('#translate-feedback').textContent='Írj be fordítást vagy kérj másikat!'; return; }
   const ok = normalizeEN(val)===normalizeEN(translateCurrent.english);
-  if(ok){ translateScore+=10; $('#translate-score').textContent=translateScore; $('#translate-feedback').textContent='Helyes!'; /* manual next: disabled auto-advance */; }
+  if(ok){ translateScore+=10;
+  translateLocked=true; $('#translate-score').textContent=translateScore; $('#translate-feedback').textContent='Helyes!'; /* manual next: disabled auto-advance */; }
   else { $('#translate-feedback').textContent='Nem teljesen helyes. Megoldás: '+translateCurrent.english; /* manual next: disabled auto-advance */; }
 }
 function showTranslateAnswer(){ if(translateShown) return; translateShown=true; $('#translate-feedback').textContent='Megoldás: '+(translateCurrent?.english||''); }
 $('#translate-submit').addEventListener('click', submitTranslate); $('#translate-pass').addEventListener('click', startTranslate); $('#translate-show').addEventListener('click', showTranslateAnswer);
-$('#translate-input').addEventListener('keydown', e=>{ if(e.key==='Enter') submitTranslate(); });
+$('#translate-input').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.repeat) submitTranslate(); });
 
 // RESET
 function resetFlash(){ initFlash(); } function resetLearn(){ learnScore=0; startLearn(); } function resetPractice(){ practiceScore=0; startPractice(); } function resetTranslate(){ translateScore=0; startTranslate(); }
